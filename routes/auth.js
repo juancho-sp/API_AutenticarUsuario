@@ -8,29 +8,52 @@ const router = express.Router();
 // Registro de uusuario
 // Este endpoint permite registrar un nuevo usuario en la base de datos.
 router.post('/register', async (req, res) => {
-  const { email, password } = req.body; // recibimos el email y la contraseña del usuario
-
+  const {
+    nombre,
+    apellido,
+    tipo_documento,
+    documento,
+    fecha_de_nacimiento,
+    email,
+    password,
+    rol
+  } = req.body;
+  // Validar los campos requeridos
   try {
-    const userExists = await User.findOne({ email }); // Verificamos si el usuario ya existe en la base de datos
+    // Verificar si el usuario ya existe por correo o documento
+    const userExists = await User.findOne({ $or: [{ email }, { documento }] });
     if (userExists) return res.status(400).json({ msg: 'El usuario ya existe' });
 
-    const hashedPassword = await bcrypt.hash(password, 10); // Hashear la contraseña entre mas de 10 veces mas segura
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({ email, password: hashedPassword });
+    // Crear el nuevo usuario con todos los campos
+    const newUser = new User({
+      nombre,
+      apellido,
+      tipo_documento,
+      documento,
+      fecha_de_nacimiento,
+      email,
+      password: hashedPassword,
+      rol // opcional, si no viene, usa el valor por defecto ("user")
+    });
+
     await newUser.save();
 
     res.status(201).json({ msg: 'Usuario registrado correctamente' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ msg: 'Error del servidor' });
   }
 });
 
 // Login
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { documento, password } = req.body;
 
   try {
-    const user = await User.findOne({ email }); // Verificamos si el usuario existe
+    const user = await User.findOne({ documento }); // Verificamos si el usuario existe
     if (!user) return res.status(400).json({ msg: 'Credenciales inválidas' });
 
     const isMatch = await bcrypt.compare(password, user.password);// Comparamos la contraseña ingresada con la almacenada en la base de datos
@@ -54,6 +77,6 @@ module.exports = router;
 const authMiddleware = require('../middleware/authMiddleware');
 
 router.get('/profile', authMiddleware, async (req, res) => {
-  const user = await User.findById(req.user).select('-password');
+  const user = await User.findById(req.user);
   res.json(user);
-});
+});1
